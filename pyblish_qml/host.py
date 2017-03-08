@@ -6,10 +6,11 @@ import traceback
 import pyblish.api
 
 from . import ipc, settings, _state
-from .vendor.Qt import QtWidgets, QtCore, QtGui
-
-MODULE_DIR = os.path.dirname(__file__)
-SPLASH_PATH = os.path.join(MODULE_DIR, "splash.png")
+try:
+    from .vendor.Qt import QtWidgets, QtCore, QtGui
+    _state["qt"] = True
+except ImportError:
+    _state["qt"] = False
 
 
 def register_dispatch_wrapper(wrapper):
@@ -91,15 +92,16 @@ def show(parent=None):
             # The running instance has already been closed.
             _state.pop("currentServer")
 
-    splash = Splash()
-    splash.show()
+    if _state.get("qt"):
+        from .splash import Splash
+        splash = Splash()
+        splash.show()
 
     def on_shown():
         try:
             splash.close()
-
-        except RuntimeError:
-            # Splash already closed
+        except (RuntimeError, NameError):
+            # Splash already closed or doesn't exist.
             pass
 
         pyblish.api.deregister_callback(*callback)
@@ -223,8 +225,9 @@ def _install_maya():
     sys.stdout.write("Setting up Pyblish QML in Maya\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    app = QtWidgets.QApplication.instance()
-    app.aboutToQuit.connect(_on_application_quit)
+    if _state.get("qt"):
+        app = QtWidgets.QApplication.instance()
+        app.aboutToQuit.connect(_on_application_quit)
 
     # Configure GUI
     settings.ContextLabel = "Maya"
@@ -242,8 +245,9 @@ def _install_houdini():
     sys.stdout.write("Setting up Pyblish QML in Houdini\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    app = QtWidgets.QApplication.instance()
-    app.aboutToQuit.connect(_on_application_quit)
+    if _state.get("qt"):
+        app = QtWidgets.QApplication.instance()
+        app.aboutToQuit.connect(_on_application_quit)
 
     settings.ContextLabel = "Houdini"
     settings.WindowTitle = "Pyblish (Houdini)"
@@ -263,8 +267,9 @@ def _install_nuke():
     sys.stdout.write("Setting up Pyblish QML in Nuke\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    app = QtWidgets.QApplication.instance()
-    app.aboutToQuit.connect(_on_application_quit)
+    if _state.get("qt"):
+        app = QtWidgets.QApplication.instance()
+        app.aboutToQuit.connect(_on_application_quit)
 
     settings.ContextLabel = "Nuke"
     settings.WindowTitle = "Pyblish (Nuke)"
@@ -285,60 +290,13 @@ def _install_hiero():
     sys.stdout.write("Setting up Pyblish QML in Hiero\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    app = QtWidgets.QApplication.instance()
-    app.aboutToQuit.connect(_on_application_quit)
+    if _state.get("qt"):
+        app = QtWidgets.QApplication.instance()
+        app.aboutToQuit.connect(_on_application_quit)
 
     settings.ContextLabel = "Hiero"
     settings.WindowTitle = "Pyblish (Hiero)"
 
 
-class Splash(QtWidgets.QWidget):
-    """Splash screen for loading QML via subprocess
 
-    Loading pyblish-qml may take some time, so when loading
-    from within an existing interpreter, such as Maya, this
-    splash screen can keep the user company during that time.
 
-    """
-
-    def __init__(self, parent=None):
-        super(Splash, self).__init__(parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(
-            QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.FramelessWindowHint
-        )
-
-        pixmap = QtGui.QPixmap(SPLASH_PATH)
-        image = QtWidgets.QLabel()
-        image.setPixmap(pixmap)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(image)
-
-        label = QtWidgets.QLabel(self)
-        label.move(20, 170)
-        label.show()
-
-        self.count = 0
-        self.label = label
-
-        self.setStyleSheet("""
-            QLabel {
-                color: white
-            }
-        """)
-
-        loop = QtCore.QTimer()
-        loop.timeout.connect(self.animate)
-        loop.start(330)
-
-        self.loop = loop
-
-        self.animate()
-        self.resize(200, 200)
-
-    def animate(self):
-        self.label.setText("loading" + "." * self.count)
-        self.count = (self.count + 1) % 4
