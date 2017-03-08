@@ -122,6 +122,7 @@ These are the hosts automatically recognised by pyblish-qml.
 - Nuke
 - Houdini
 - Hiero
+- Blender
 
 <br>
 
