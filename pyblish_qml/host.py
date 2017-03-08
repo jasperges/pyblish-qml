@@ -190,7 +190,9 @@ def install_host():
     for install in (_install_maya,
                     _install_houdini,
                     _install_nuke,
-                    _install_hiero):
+                    _install_hiero,
+                    _install_blender,
+                    ):
         try:
             install()
         except ImportError:
@@ -298,5 +300,12 @@ def _install_hiero():
     settings.WindowTitle = "Pyblish (Hiero)"
 
 
+def _install_blender():
+    """Helper function to Blender support"""
+    import bpy
 
+    sys.stdout.write("Setting up Pyblish QML in Blender\n")
 
+    # Configure GUI
+    settings.ContextLabel = "Blender"
+    settings.WindowTitle = "Pyblish (Blender)"
