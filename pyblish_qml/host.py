@@ -302,9 +302,12 @@ def _install_hiero():
 
 def _install_blender():
     """Helper function to Blender support"""
+    import atexit
     import bpy
 
     sys.stdout.write("Setting up Pyblish QML in Blender\n")
+
+    atexit.register(_on_application_quit)
 
     # Configure GUI
     settings.ContextLabel = "Blender"
