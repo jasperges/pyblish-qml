@@ -185,6 +185,17 @@ class Server(object):
                         # until finished, which means we are guaranteed to
                         # always respond.
 
+                        # Note(jasperge): at least for Blender this is not True.
+                        # Because the server _listen is run in a thread, also
+                        # the requests by pyblish-qml are processed in this
+                        # thread, which makes it non-blocking. As a side effect
+                        # bpy.context is also almost empty, basically only the
+                        # current scene can be found in the context. All other
+                        # things you have to find yourself (like the active
+                        # object, selected objects etc. If you want to use an
+                        # operator in your plugin, you also have to override
+                        # the context because of this.
+
                         data = json.dumps({
                             "header": "pyblish-qml:popen.response",
                             "payload": result
