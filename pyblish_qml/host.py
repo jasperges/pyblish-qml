@@ -8,10 +8,8 @@ import pyblish.api
 from . import ipc, settings, _state
 try:
     from .vendor.Qt import QtWidgets, QtCore, QtGui
-    _state["qt"] = True
 except ImportError:
-    _state["qt"] = False
-
+    pass
 
 def register_dispatch_wrapper(wrapper):
     """Register a dispatch wrapper for servers
@@ -67,6 +65,20 @@ def uninstall():
     sys.stdout.write("Pyblish QML shutdown successful.\n")
 
 
+def _show_splash():
+    """Try to show a splash screen when launching Pyblish QML
+
+    Returns:
+        QtWidget or None
+
+    """
+    if "QtWidgets" in globals() and QtWidgets.QApplication.instance():
+        from .splash import Splash
+        splash = Splash()
+        splash.show()
+        return splash
+
+
 def show(parent=None):
     """Attempt to show GUI
 
@@ -92,15 +104,12 @@ def show(parent=None):
             # The running instance has already been closed.
             _state.pop("currentServer")
 
-    if _state.get("qt"):
-        from .splash import Splash
-        splash = Splash()
-        splash.show()
+    splash = _show_splash()
 
     def on_shown():
         try:
             splash.close()
-        except (RuntimeError, NameError):
+        except (RuntimeError, AttributeError):
             # Splash already closed or doesn't exist.
             pass
 
@@ -216,6 +225,22 @@ def _on_application_quit():
         pass
 
 
+def _connect_application_quit():
+    """Run _on_application_quit on host exit
+
+    Do the best thing possible for the current host.
+
+    """
+
+    if "QtWidgets" in globals():
+        app = QtWidgets.QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(_on_application_quit)
+        else:
+            import atexit
+            atexit.register(_on_application_quit)
+
+
 def _install_maya():
     """Helper function to Autodesk Maya support"""
     from maya import utils
@@ -227,9 +252,7 @@ def _install_maya():
     sys.stdout.write("Setting up Pyblish QML in Maya\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    if _state.get("qt"):
-        app = QtWidgets.QApplication.instance()
-        app.aboutToQuit.connect(_on_application_quit)
+    _connect_application_quit()
 
     # Configure GUI
     settings.ContextLabel = "Maya"
@@ -247,9 +270,7 @@ def _install_houdini():
     sys.stdout.write("Setting up Pyblish QML in Houdini\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    if _state.get("qt"):
-        app = QtWidgets.QApplication.instance()
-        app.aboutToQuit.connect(_on_application_quit)
+    _connect_application_quit()
 
     settings.ContextLabel = "Houdini"
     settings.WindowTitle = "Pyblish (Houdini)"
@@ -269,9 +290,7 @@ def _install_nuke():
     sys.stdout.write("Setting up Pyblish QML in Nuke\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    if _state.get("qt"):
-        app = QtWidgets.QApplication.instance()
-        app.aboutToQuit.connect(_on_application_quit)
+    _connect_application_quit()
 
     settings.ContextLabel = "Nuke"
     settings.WindowTitle = "Pyblish (Nuke)"
@@ -292,9 +311,7 @@ def _install_hiero():
     sys.stdout.write("Setting up Pyblish QML in Hiero\n")
     register_dispatch_wrapper(threaded_wrapper)
 
-    if _state.get("qt"):
-        app = QtWidgets.QApplication.instance()
-        app.aboutToQuit.connect(_on_application_quit)
+    _connect_application_quit()
 
     settings.ContextLabel = "Hiero"
     settings.WindowTitle = "Pyblish (Hiero)"
@@ -302,12 +319,11 @@ def _install_hiero():
 
 def _install_blender():
     """Helper function to Blender support"""
-    import atexit
     import bpy
 
     sys.stdout.write("Setting up Pyblish QML in Blender\n")
 
-    atexit.register(_on_application_quit)
+    _connect_application_quit()
 
     # Configure GUI
     settings.ContextLabel = "Blender"
