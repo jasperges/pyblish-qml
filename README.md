@@ -387,9 +387,9 @@ $ . test_docker.sh
 # Publishing works ... ok
 # ...
 # util.chain works with lambdas ... ok
-# 
+#
 # ----------------------------------------------------------------------
 # Ran 20 tests in 1.430s
-# 
+#
 # OK
 ```
