@@ -538,6 +538,32 @@ class InactiveInstanceCollectorPlugin(pyblish.api.InstancePlugin):
         raise TypeError("I shouldn't have run in the first place")
 
 
+class CommentPlugin(pyblish.api.ContextPlugin):
+    """Display whatever comment was entered"""
+    order = pyblish.api.ValidatorOrder
+
+    def process(self, context):
+        self.log.info(context.data.get("comment", "No comment"))
+
+
+class TargetedCollector(pyblish.api.ContextPlugin):
+    """Target collector to "studio" target."""
+    order = pyblish.api.CollectorOrder
+    targets = ["studio"]
+
+    def process(self, context):
+        pass
+
+
+class TargetedValidator(pyblish.api.ContextPlugin):
+    """Target validator to "studio" target."""
+    order = pyblish.api.ValidatorOrder
+    targets = ["studio"]
+
+    def process(self, context):
+        pass
+
+
 instances = [
     {
         "name": "Peter01",
@@ -599,6 +625,12 @@ instances = [
             "family": "failure",
             "fail": True
         }
+    },
+    {
+        "name": "More Families",
+        "data": {
+            "families": ["stark", "lannister"]
+        }
     }
 ]
 
@@ -644,7 +676,25 @@ plugins = [
     LongRunningValidator,
 
     RearrangingPlugin,
-    InactiveInstanceCollectorPlugin
+    InactiveInstanceCollectorPlugin,
+
+    CommentPlugin,
+
+    TargetedCollector,
+    TargetedValidator,
 ]
 
 pyblish.api.sort_plugins(plugins)
+
+
+# Callbacks
+def close_callback():
+    print("Custom callback when closing...")
+
+
+def close_forced_callback():
+    print("Custom callback when closing forcibly...")
+
+
+pyblish.api.register_callback("pyblishQmlClose", close_callback)
+pyblish.api.register_callback("pyblishQmlCloseForced", close_forced_callback)

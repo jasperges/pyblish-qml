@@ -15,6 +15,7 @@ The Pyblish QML project provides a graphical frontend to [Pyblish](http://pyblis
 
 Pyblish QML requires an external Python 2 or 3 distribution with PyQt5.4+.
 
+- Pyblish 1.2.1 or higher
 - [Python 3.5 any platform](../../wiki/Python-3.5-Any-Platform)
 - [Python 2.7 on Windows](../../wiki/Python-2.7-Windows)
 - [Python 2.7 on CentOS 7](../../wiki/Python-2.7-CentOS)
@@ -134,6 +135,7 @@ Some data within each Instance and Context are special to QML.
 |:----------|:-----------------|:-------------------
 | `publish` | Instance         | The on/off state of the toggle.
 | `label`   | Context/Instance | Draw this instead of an instance's `name`
+| `comment` | Context          | Display and edit comment in GUI
 
 <br>
 
@@ -330,6 +332,7 @@ Customise Context label and Window title.
 from pyblish_qml import settings
 settings.WindowTitle = "My Title"
 settings.WindowSize = (430, 600)
+settings.WindowPosition = (100, 100)
 settings.ContextLabel = "The World"
 ```
 
@@ -392,4 +395,11 @@ $ . test_docker.sh
 # Ran 20 tests in 1.430s
 #
 # OK
+```
+
+If you don't have Docker available you can test with these commands, for both Python 2 and Python 3:
+
+```bash
+$ cd pyblish-qml
+$ python -m nose --verbose --with-doctest --exe --exclude=vendor
 ```

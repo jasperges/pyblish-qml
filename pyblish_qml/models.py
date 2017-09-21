@@ -1,5 +1,6 @@
-import time
 import re
+import time
+import logging
 
 from PyQt5 import QtCore
 
@@ -15,6 +16,7 @@ defaults = {
         "families": list(),
         "familiesConcatenated": "",
         "isToggled": True,
+        "hasWarning": False,
         "hasError": False,
         "actionHasError": False,
         "actionPending": True,
@@ -233,7 +235,7 @@ class AbstractModel(QtCore.QAbstractListModel):
         if role in (QtCore.Qt.UserRole + 0, QtCore.Qt.UserRole + 1):
             try:
                 return self.items[index.row()]
-            except:
+            except Exception:
                 pass
 
         return QtCore.QVariant()
@@ -382,9 +384,9 @@ class ItemModel(AbstractModel):
         item["hasCompatible"] = True
 
         # Visualised in Perspective
-        item["familiesConcatenated"] = instance["data"].get("family", "")
-        item["familiesConcatenated"] += ", ".join(
-            instance["data"].get("families", []))
+        families = [instance["data"]["family"]]
+        families.extend(instance["data"].get("families", []))
+        item["familiesConcatenated"] += ", ".join(families)
 
         item = self.add_item(item)
         self.instances.append(item)
@@ -451,6 +453,10 @@ class ItemModel(AbstractModel):
             item.isProcessing = False
             item.currentProgress = 1
             item.processed = True
+            item.hasWarning = any([
+                record["levelno"] == logging.WARNING
+                for record in result["records"]
+            ])
 
             if result.get("error"):
                 item.hasError = True
@@ -569,7 +575,7 @@ class ResultModel(AbstractModel):
 
         try:
             instance_name = result["instance"]["name"]
-        except:
+        except Exception:
             instance_name = None
 
         plugin_msg = {

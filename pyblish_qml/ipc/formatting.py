@@ -131,6 +131,7 @@ def format_data(data):
         "family",
         "families",
         "publish",
+        "comment",
 
         # Provided by service.py
         "host",
@@ -266,6 +267,10 @@ def format_plugin(plugin):
         "optional": plugin.optional,
         "hosts": plugin.hosts,
         "families": plugin.families,
+
+        # New in pyblish-base 1.5.2
+        "targets": getattr(plugin, "targets", list()),
+
         "doc": inspect.getdoc(plugin),
         "active": plugin.active,
         "match": plugin.match,

@@ -42,9 +42,11 @@ class Window(QtQuick.QQuickView):
 
             if shift_pressed:
                 print("Force quitted..")
+                self.parent.controller.host.emit("pyblishQmlCloseForced")
                 event.accept()
 
             elif any(state in states for state in ("ready", "finished")):
+                self.parent.controller.host.emit("pyblishQmlClose")
                 event.accept()
 
             else:
@@ -52,12 +54,6 @@ class Window(QtQuick.QQuickView):
                 event.ignore()
 
         return super(Window, self).event(event)
-
-    def keyPressEvent(self, event):
-        """Delegate keyboard events"""
-
-        if event.key() == QtCore.Qt.Key_Return:
-            return self.on_enter()
 
 
 class Application(QtGui.QGuiApplication):
@@ -71,8 +67,11 @@ class Application(QtGui.QGuiApplication):
     shown = QtCore.pyqtSignal(QtCore.QVariant)
     hidden = QtCore.pyqtSignal()
     quitted = QtCore.pyqtSignal()
+    risen = QtCore.pyqtSignal()
+    inFocused = QtCore.pyqtSignal()
+    outFocused = QtCore.pyqtSignal()
 
-    def __init__(self, source):
+    def __init__(self, source, targets=[]):
         super(Application, self).__init__(sys.argv)
 
         self.setWindowIcon(QtGui.QIcon(ICON_PATH))
@@ -84,7 +83,7 @@ class Application(QtGui.QGuiApplication):
         engine.addImportPath(QML_IMPORT_DIR)
 
         host = ipc.client.Proxy()
-        controller = control.Controller(host)
+        controller = control.Controller(host, targets=targets)
         controller.finished.connect(lambda: window.alert(0))
 
         context = engine.rootContext()
@@ -100,6 +99,9 @@ class Application(QtGui.QGuiApplication):
         self.shown.connect(self.show)
         self.hidden.connect(self.hide)
         self.quitted.connect(self.quit)
+        self.risen.connect(self.rise)
+        self.inFocused.connect(self.inFocus)
+        self.outFocused.connect(self.outFocus)
 
         window.setSource(QtCore.QUrl.fromLocalFile(source))
 
@@ -136,6 +138,12 @@ class Application(QtGui.QGuiApplication):
             window.setWidth(client_settings["WindowSize"][0])
             window.setHeight(client_settings["WindowSize"][1])
             window.setTitle(client_settings["WindowTitle"])
+            window.setFramePosition(
+                QtCore.QPoint(
+                    client_settings["WindowPosition"][0],
+                    client_settings["WindowPosition"][1]
+                )
+            )
 
         message = list()
         message.append("Settings: ")
@@ -169,7 +177,9 @@ class Application(QtGui.QGuiApplication):
             util.timer_end("ready", "Awaited statemachine for %.2f ms")
 
         self.controller.show.emit()
-        self.controller.reset()
+
+        # Allow time for QML to initialise
+        util.schedule(self.controller.reset, 500, channel="main")
 
     def hide(self):
         """Hide GUI
@@ -180,6 +190,22 @@ class Application(QtGui.QGuiApplication):
         """
 
         self.window.hide()
+
+    def rise(self):
+        """Rise GUI from hidden"""
+        self.window.show()
+
+    def inFocus(self):
+        """Set GUI on-top flag"""
+        if os.name == "nt":
+            previous_flags = self.window.flags()
+            self.window.setFlags(previous_flags | QtCore.Qt.WindowStaysOnTopHint)
+
+    def outFocus(self):
+        """Remove GUI on-top flag"""
+        if os.name == "nt":
+            previous_flags = self.window.flags()
+            self.window.setFlags(previous_flags ^ QtCore.Qt.WindowStaysOnTopHint)
 
     def listen(self):
         """Listen on incoming messages from host
@@ -202,7 +228,10 @@ class Application(QtGui.QGuiApplication):
                 signal = {
                     "show": "shown",
                     "hide": "hidden",
-                    "quit": "quitted"
+                    "quit": "quitted",
+                    "rise": "risen",
+                    "inFocus": "inFocused",
+                    "outFocus": "outFocused",
                 }.get(payload["name"])
 
                 if not signal:
@@ -220,7 +249,7 @@ class Application(QtGui.QGuiApplication):
         thread.start()
 
 
-def main(demo=False, aschild=False):
+def main(demo=False, aschild=False, targets=[]):
     """Start the Qt-runtime and show the window
 
     Arguments:
@@ -231,7 +260,7 @@ def main(demo=False, aschild=False):
     if aschild:
         print("Starting pyblish-qml")
         compat.main()
-        app = Application(APP_PATH)
+        app = Application(APP_PATH, targets)
         app.listen()
 
         print("Done, don't forget to call `show()`")
@@ -240,10 +269,9 @@ def main(demo=False, aschild=False):
     else:
         print("Starting pyblish-qml server..")
         service = ipc.service.MockService() if demo else ipc.service.Service()
-        server = ipc.server.Server(service)
+        server = ipc.server.Server(service, targets=targets)
 
-        if demo:
-            proxy = ipc.server.Proxy(server)
-            proxy.show(settings.to_dict())
+        proxy = ipc.server.Proxy(server)
+        proxy.show(settings.to_dict())
 
         server.wait()
